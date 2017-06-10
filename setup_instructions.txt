@@ -2,7 +2,8 @@ ulimit -s ulimitted
 ethtool -s enp0s25 speed 10 duplex full autoneg off
 ethtool -s enp0s25 speed 100 duplex full autoneg off
 
-
+git commit receive2.c send.c setup_instructions.txt test.c receive.c
+git push origin master
 
 
 
