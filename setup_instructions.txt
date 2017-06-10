@@ -1,0 +1,12 @@
+ulimit -s ulimitted
+ethtool -s enp0s25 speed 10 duplex full autoneg off
+ethtool -s enp0s25 speed 100 duplex full autoneg off
+
+
+
+
+
+REFERENCES
+https://stackoverflow.com/questions/7215764/how-to-measure-the-actual-execution-time-of-a-c-program-under-linux
+
+
