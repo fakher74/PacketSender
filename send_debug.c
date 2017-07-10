@@ -56,10 +56,10 @@ void enQueue(char *value)
       tail = newPacket;
    }
   // printf("\nInsertion is Success!!! value= %s\n",value);
-//   printf("\nInsertion is Success!!! newPacket= %s\n",newPacket->data);
-//  printf("\nInsertion is Success!!! newPacket= %s\n",newPacket->next);
+   printf("\nInsertion is Success!!! newPacket= %s\n",newPacket->data);
+  printf("\nInsertion is Success!!! newPacket= %s\n",newPacket->next);
 int column1 = sizeof(newPacket->data);
-//      printf("\n entred msg value : %s len= %d", newPacket->data, column1);
+      printf("\n entred msg value : %s len= %d", newPacket->data, column1);
   // printf("\nInsertion is Success!!! tail-data= %s\n",tail->data);
   // printf("\nInsertion is Success!!! tail-next= %s\n",tail->next);
   // printf("\nInsertion is Success!!! head-data= %s\n",head->data);
@@ -77,12 +77,12 @@ void populateQueue(int p)
        //  queueRear = queueRear + 1;
        enQueue(msg);
  int column1 = sizeof(msg);
- //     printf("\n entred msg value : %s len= %d", msg, column1);
+      printf("\n entred msg value : %s len= %d", msg, column1);
 
- //  printf("\npopulate!!! tail-data= %s\n",tail->data);
-//   printf("\npopulate!!! tail-next= %s\n",tail->next);
-//   printf("\npopulate!!! head-data= %s\n",head->data);
-//   printf("\npopulate!!! head-next= %s\n",head->next);
+   printf("\npopulate!!! tail-data= %s\n",tail->data);
+   printf("\npopulate!!! tail-next= %s\n",tail->next);
+   printf("\npopulate!!! head-data= %s\n",head->data);
+   printf("\npopulate!!! head-next= %s\n",head->next);
       }
 }
 
@@ -90,7 +90,7 @@ void populateQueue(int p)
 void deQueue()
 {
   struct Packet *temp = head;
-//  printf("\nHead element: %s\n", head->data);
+  printf("\nHead element: %s\n", head->data);
    if(temp == NULL)
       printf("\nQueue is Empty!!!\n");
    else{
@@ -115,7 +115,7 @@ printf("exit deQueue");
 
   char *  readQueue()
 {
- static  char  msg[MSGIDLENGTH+1];
+ static  char  msg[10+1];
    if(head == NULL){
       printf("\nQueue is Empty!!!\n");
       strncpy(msg,"E000000000",MSGIDLENGTH); 
@@ -140,10 +140,10 @@ int main(void)
     int s, i,j,x, slen=sizeof(si_other);
     int queueFront = -1;
     int queueRear= -1;
-    int paddingSize = BUFLEN-MSGIDLENGTH;
+    int paddingSize = BUFLEN-10;
   //  char buf[BUFLEN];
 //    char message[PACKETS];
-    char message2[PACKETS][MSGIDLENGTH];
+    char message2[PACKETS][10];
     char * msgSent;
     char paddings[paddingSize];
     clock_t begin = clock();
