@@ -15,7 +15,7 @@
 #define PORT 8888   //The port on which to send data
 
  
-#define PACKETS 100000  //The port on which to send data
+#define PACKETS 10  //The port on which to send data
 #define MSGIDLENGTH 10
 
 struct Packet
@@ -220,9 +220,12 @@ printf("\nTEST400:queue msgId= %s len1=%d ",msgId,column0);
       //   char *msgSent =concat(message2[x][0], paddings);
 //         msgSent = (char*)malloc(sizeof(message2[x])+sizeof(paddings)+1);//+1 for the zero-terminator
          msgSent = (char*)malloc(strlen(msgId)+sizeof(paddings)+1);//+1 for the zero-terminator
+printf ("\nqueue 2   size = %d, %d, %d is %s\n", column1 ,strlen(msgSent),sizeof(paddings), msgId);
         // in real code you would check for errors in malloc here
          strncpy(msgSent,msgId,column1);
+printf ("\nqueue 2   size = %d, %d, %d is %s\n", column1 ,strlen(msgSent),sizeof(paddings), msgId);
          strcat(msgSent, paddings);
+printf ("\nqueue 2   size = %d, %d, %d is %s\n", column1 ,strlen(msgSent),sizeof(paddings), msgId);
  
 //        if (sendto(s, message2[x], strlen(message2[x]) , 0 , (struct sockaddr *) &si_other, slen)==-1)
         if (sendto(s, msgSent, strlen(msgSent) , 0 , (struct sockaddr *) &si_other, slen)==-1)

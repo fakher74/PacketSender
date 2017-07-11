@@ -11,19 +11,34 @@
  
 //#define SERVER "127.0.0.1"
 #define SERVER "192.168.0.20"
-#define BUFLEN 3000    //Max length of buffer
+#define BUFLEN 150    //Max length of buffer
 #define PORT 8888   //The port on which to send data
 
  
-#define PACKETS 100000  //The port on which to send data
+#define PACKETS 10  //The port on which to send data
 #define MSGIDLENGTH 10
 
 struct Packet
 {
   char data[MSGIDLENGTH];
-  struct Packet *next;
-}*head = NULL,*tail = NULL;
+};	
 
+struct queue {
+   int qsize;
+   int head,tail;
+   struct Packet *qdata;
+};
+
+struct queue* initcq(int size) {
+   struct queue *cq=malloc(sizeof(struct queue));
+   if(!cq)return NULL;
+   cq->qsize=size;
+   cq->head=-1;
+   cq->tail=-1;
+   cq->qdata=malloc(cq->qsize*sizeof(struct Packet));
+   if(!cq->qdata)return NULL;
+  return cq;
+}
 
 void die(char *s)
 {
@@ -40,92 +55,82 @@ char* concat(const char *s1, const char *s2)
     return result;
 }
 
-void enQueue(char *value)
-{
-   struct Packet *newPacket;
-   newPacket = (struct Packet*)malloc(1*sizeof(struct Packet));
- //  newPacket->data = value;
-   strncpy(newPacket->data,value,MSGIDLENGTH+1);
-   newPacket->next = NULL;
-   if(head == NULL){
-      head = tail = newPacket;
-      printf("Empty Queue!");
-   }  
-   else{
-      tail->next = newPacket;
-      tail = newPacket;
-   }
-  // printf("\nInsertion is Success!!! value= %s\n",value);
-//   printf("\nInsertion is Success!!! newPacket= %s\n",newPacket->data);
-//  printf("\nInsertion is Success!!! newPacket= %s\n",newPacket->next);
-int column1 = sizeof(newPacket->data);
-//      printf("\n entred msg value : %s len= %d", newPacket->data, column1);
-  // printf("\nInsertion is Success!!! tail-data= %s\n",tail->data);
-  // printf("\nInsertion is Success!!! tail-next= %s\n",tail->next);
-  // printf("\nInsertion is Success!!! head-data= %s\n",head->data);
-  // printf("\nInsertion is Success!!! head-next= %s\n",head->next);
+int isemptyqueue(struct queue *cq) {
+   return(cq->head==-1);
 }
 
-void populateQueue(int p)
+int isfullqueue(struct queue *q) {
+   return((q->tail+1)%q->qsize==q->tail);
+}
+
+
+void enQueue(struct queue *cq, struct Packet pkt)
+{
+   if(isfullqueue(cq))
+      printf("queue overflow\n");
+   else{
+      cq->tail=(cq->tail+1)%cq->qsize;
+      cq->qdata[cq->tail]=pkt;
+      if(cq->head==-1) {
+         cq->head=cq->tail;
+   }
+}
+}
+
+int deQueue(struct queue *cq, struct Packet *pkt) {
+    
+      printf("\ndeQueue!!!\n");
+   if(isemptyqueue(cq)) {
+      printf("queue underflow");
+      return -1;
+   }
+   else {
+      printf("\ndeQueue%d, %d \n", pkt,cq->head);
+      *pkt =cq->qdata[cq->head];
+      if(cq->head==cq->tail)
+         cq->head=cq->tail=-1;
+      else
+         cq->head=(cq->head+1)%cq->qsize;
+   }
+
+      printf("\ndeQueue%d, %d \n", pkt,cq->head);
+   return 0;
+}
+
+
+void populateQueue(struct queue *cq,int p)
 {
    int j;
    char msg[MSGIDLENGTH];
       for (j=0;j<p;j++){
-       //  message2[j]= j;
-        // sprintf(msg[MSGIDLENGTH], "%10d", j);
-         sprintf(msg, "%010d", j);
-       //  queueRear = queueRear + 1;
-       enQueue(msg);
+         sprintf(msg, "%010d", j+10);
+      struct Packet newPacket;
+        strncpy(newPacket.data,msg,MSGIDLENGTH+1);
+       enQueue(cq,newPacket);
  int column1 = sizeof(msg);
- //     printf("\n entred msg value : %s len= %d", msg, column1);
+      printf("\n entred msg value : %s len= %d", msg, column1);
 
- //  printf("\npopulate!!! tail-data= %s\n",tail->data);
-//   printf("\npopulate!!! tail-next= %s\n",tail->next);
-//   printf("\npopulate!!! head-data= %s\n",head->data);
-//   printf("\npopulate!!! head-next= %s\n",head->next);
       }
 }
 
 
-void deQueue()
-{
-  struct Packet *temp = head;
-//  printf("\nHead element: %s\n", head->data);
-   if(temp == NULL)
-      printf("\nQueue is Empty!!!\n");
-   else{
-      if (temp->next != NULL){
-         temp = temp->next;
-        printf("\nDeleted element: %s\n", temp->data);
-         free(head);
-         head = temp;
-      } else
-      {
-         printf("\n Dequed value : %s", temp->data);
-         free(head);
-         head = NULL;
-         tail = NULL;
-      }
-     int column1 = sizeof(temp->data);
-      printf("\n deleted msg value : %s len= %d", temp->data, column1);
-
-   }
-printf("exit deQueue");
-}
-
-  char *  readQueue()
+  char *  readQueue(struct queue *cq, struct Packet *pkt)
 {
  static  char  msg[MSGIDLENGTH+1];
-   if(head == NULL){
+      printf("\nreadQueue!!!\n");
+ //  struct Packet *pkt;
+int x=deQueue(cq,pkt);
+      printf("\nreadQueue!!!\n");
+   if(x == -1){
+      printf("\nreadQueue!!!\n");
       printf("\nQueue is Empty!!!\n");
       strncpy(msg,"E000000000",MSGIDLENGTH); 
       return msg;
       }
    else{
-      printf("\n Read head value : %s", head->data);
-      strncpy(msg,head->data,MSGIDLENGTH);
+      printf("\n Read head value : %s", pkt->data);
+      strncpy(msg,pkt->data,MSGIDLENGTH);
       printf("\n Read msg value : %s", msg); 
-      deQueue();
    int column1 = sizeof(msg);
       printf("\n Read msg value : %s len= %d", msg, column1); 
       return msg;
@@ -136,6 +141,8 @@ printf("exit deQueue");
 
 int main(void)
 {
+
+   struct Packet *pkt;
     struct sockaddr_in si_other;
     int s, i,j,x, slen=sizeof(si_other);
     int queueFront = -1;
@@ -153,25 +160,23 @@ int main(void)
  //  char  msgId[MSGIDLENGTH];
    char * msgId;
 
-
-   populateQueue(PACKETS);
+struct queue * cq = initcq(PACKETS);
+   populateQueue(cq,PACKETS);
 
 
     for (j=0;j<paddingSize;j++){
            paddings[j]= '#';
-     // sprintf(message2[j], "%d", j);
-	 //   printf ("pading size = %d  j= %d   =  %c \n", strlen(paddings),j,paddings[j]);
       
     }
-//       printf ("pading size AFTER FOR = %d", strlen(paddings));
     
 
-   //printf("TEST1  %d", paddingSize);
     queueFront =0;  // first item
     for (j=0;j<PACKETS;j++){
-      //      message2[j]= j;
-      sprintf(message2[j], "%10d", j);
-      queueRear = queueRear + 1;
+printf("TEST2 rear=  %d front= %d\n", cq->tail,cq->head );
+//            readQueue(cq,pkt);
+printf("TEST3 rear=  %d front= %d\n", cq->tail,cq->head );
+     // sprintf(message2[j], "%10d", j+10);
+    //  queueRear = queueRear + 1;
     }
     
  
@@ -193,7 +198,7 @@ int main(void)
 
    printf("Sending %d  packets.\n",PACKETS);
 //   printf ("queue 99  size = %d\n", sizeof(message2));
-printf("TEST1 rear=  %d front= %d\n", queueRear,queueFront );
+//printf("TEST1 rear=  %d front= %d\n", queueRear,queueFront );
    gettimeofday(&starts, NULL);
 
 
@@ -201,49 +206,39 @@ printf("TEST1 rear=  %d front= %d\n", queueRear,queueFront );
 
 
   //  while(x<PACKETS)
-    while(queueFront<=queueRear)
+    while(queueFront<10)
     {
 //              printf("Enter message : ");
       ///   gets(message);
      // printf ("message %s\n", message2[1][0]);
-//printf("TEST2 rear=  %d front= %d\n", queueRear,queueFront );
-   int column0 = strlen(msgId);
-printf("\nTEST400:queue msgId= %s len1=%d ",msgId,column0);
+printf("TEST1 rear=  %d front= %d\n", cq->tail,cq->head );
+//   int column0 = strlen(msgId);
+//printf("\nTEST400:queue msgId= %s len1=%d \n",msgId,column0);
 
-    msgId = readQueue();
-//strncpy(msgId,readQueue(),10);
-     int column = sizeof(message2[x]);
-     int column1 = strlen(msgId);
+    msgId = readQueue(cq,pkt);
+//strncpy(msgId,readQueue(cq,pkt),10);
+ //    int column = sizeof(message2[x]);
      
-//   printf ("queue 1   size = %d\n", sizeof(message2[1]));
  
       //   char *msgSent =concat(message2[x][0], paddings);
 //         msgSent = (char*)malloc(sizeof(message2[x])+sizeof(paddings)+1);//+1 for the zero-terminator
          msgSent = (char*)malloc(strlen(msgId)+sizeof(paddings)+1);//+1 for the zero-terminator
+
+printf ("\nqueue 2   idl=%d,sentl=%d,padl=%d,pads=%d,msg=%s, pad=%s\n", strlen(msgId) ,strlen(msgSent),strlen(paddings),sizeof(paddings), msgSent, paddings);
         // in real code you would check for errors in malloc here
-         strncpy(msgSent,msgId,column1);
+         strncpy(msgSent,msgId,strlen(msgId));
+printf ("\nqueue 3   idl=%d,sentl=%d,padl=%d,pads=%d,msg=%s, pad=%s\n", strlen(msgId) ,strlen(msgSent),strlen(paddings),sizeof(paddings), msgSent, paddings);
          strcat(msgSent, paddings);
+printf ("\nqueue 4   idl=%d,sentl=%d,padl=%d,pads=,msg=%s, pad=%s\n", strlen(msgId) ,strlen(msgSent),strlen(paddings), msgSent, paddings);
  
 //        if (sendto(s, message2[x], strlen(message2[x]) , 0 , (struct sockaddr *) &si_other, slen)==-1)
-        if (sendto(s, msgSent, strlen(msgSent) , 0 , (struct sockaddr *) &si_other, slen)==-1)
+        if (sendto(s, msgSent, sizeof(msgSent) , 0 , (struct sockaddr *) &si_other, slen)==-1)
         {
             die("sendto()");
         }
         x++;
-        queueFront ++;
+        queueFront++;
         //free(msgSent);
-        //receive a reply and print it
-        //clear thesgId filling null, it might have previously received data
-	// memset(buf,'\0', BUFLEN);
-        //try to receive some data, this is a blocking call
-        //if (recvfrom(s, buf, BUFLEN, 0, (struct sockaddr *) &si_other, &slen) == -1)
-	// {
-	//  die("recvfrom()");
-	    // }
-         
-	// puts(buf);
-//	printf("\nTEST3 rear=  %d front= %d\n", queueRear,queueFront );
-    
 //    printf("\nTEST4:queue msgId= %s message2 = %s len= %d len1=%d value: %s",msgId, message2[x],column,column1, msgSent); 
     }
 
