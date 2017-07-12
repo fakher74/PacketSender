@@ -15,7 +15,7 @@
 #define PORT 8888   //The port on which to send data
 
  
-#define PACKETS 10000  //The port on which to send data
+#define PACKETS 100000  //The port on which to send data
 
 void die(char *s)
 {
