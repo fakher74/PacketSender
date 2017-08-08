@@ -8,24 +8,22 @@
 #include<sys/socket.h>
 #include<time.h>
 #include<sys/time.h>
-#include <pthread.h>
  
 //#define SERVER "127.0.0.1"
 #define SERVER "192.168.0.20"
 #define BUFLEN 1500    //Max length of buffer
 #define PORT 8888   //The port on which to send data
-#define MAXIMUM 100000   //The port on which to send data
 
  
-#define PACKETS 1000  //The port on which to send data
+#define PACKETS 1000000  //The port on which to send data
 #define MSGIDLENGTH 10
-pthread_mutex_t mutex; 
+
 struct Packet {
   char data[MSGIDLENGTH];
 };	
 
 struct queue {
-   int qsize,qelements;
+   int qsize;
    int head,tail;
    struct Packet *qdata;
 };
@@ -34,7 +32,6 @@ struct queue* initcq(int size) {
    struct queue *cq=malloc(sizeof(struct queue));
    if(!cq)return NULL;
    cq->qsize=size;
-   cq->qelements=0;
    cq->head=-1;
    cq->tail=-1;
    cq->qdata=malloc(cq->qsize*sizeof(struct Packet));
@@ -61,27 +58,18 @@ int isemptyqueue(struct queue *cq) {
 }
 
 int isfullqueue(struct queue *q) {
-   return( ((q->tail+1)%q->qsize==q->tail) || (q->qsize==q->qelements) );
+   return((q->tail+1)%q->qsize==q->tail);
 }
 
-int  enQueue(struct queue *cq, struct Packet pkt) {
-   if(isfullqueue(cq)){
-//      printf("queue overflow\n");
-      return 1;
-   }
+void enQueue(struct queue *cq, struct Packet pkt) {
+   if(isfullqueue(cq))
+      printf("queue overflow\n");
    else{
-//      printf("\n Top of enQueue head: %d tail= %d, elem = %d", cq->head, cq->tail, cq->qelements); 
-       pthread_mutex_lock(&mutex);
       cq->tail=(cq->tail+1)%cq->qsize;
       cq->qdata[cq->tail]=pkt;
       if(cq->head==-1) {
          cq->head=cq->tail;
       }
-   
-      (cq->qelements++);
-      pthread_mutex_unlock(&mutex);
-//      printf("\n End of enQueue head: %d tail= %d, elem = %d", cq->head, cq->tail, cq->qelements); 
-      return 0;
    }
 }
 
@@ -90,69 +78,35 @@ int deQueue(struct queue *cq, struct Packet *pkt) {
    //printf("\ndeQueue!!!\n");
    if(isemptyqueue(cq)) {
       printf("queue underflow");
-      return 1;
+      return -1;
    }
    else {
-      //printf("\n Top of deQueue head: %d tail= %d, elem = %d", cq->head, cq->tail, cq->qelements); 
      // printf("\ndeQueue%d, %d \n", pkt,cq->head);
-      pthread_mutex_lock(&mutex);
       *pkt =cq->qdata[cq->head];
       if(cq->head==cq->tail)
          cq->head=cq->tail=-1;
       else
          cq->head=(cq->head+1)%cq->qsize;
    }
-   (cq->qelements)--;
-  pthread_mutex_unlock(&mutex); 
-      //printf("\n End of deQueue head: %d tail= %d, elem = %d", cq->head, cq->tail, cq->qelements); 
-   
 
 //      printf("\ndeQueue%d, %d \n", pkt,cq->head);
    return 0;
 }
 
 
-void *  populateQueue(void *cq) {
-//void populateQueue(struct queue *cq,int p) {
+void populateQueue(struct queue *cq,int p) {
    int j;
-   int p = PACKETS;
-   int elementAdd= 1;
    char msg[MSGIDLENGTH];
-   struct queue *cqt= (struct queue *) cq;
    for (j=0;j<p;j++){
       sprintf(msg, "%010d", j);
       struct Packet newPacket;
       strncpy(newPacket.data,msg,MSGIDLENGTH+1);
-      elementAdd=enQueue(cqt,newPacket);
-      if (elementAdd){
-         printf("\n  Mmsg value : %s loc= %d, qsize%d", msg,cqt->tail ,cqt->qelements);
-      }
-   }
+      enQueue(cq,newPacket);
       int column1 = sizeof(msg);
-      
-     // sleep (1);
-      while (1){
-      if (!isfullqueue(cqt)){
-      struct Packet newPacket;
-      sprintf(msg, "%010d", j);
-      
-             strncpy(newPacket.data,msg,MSGIDLENGTH+1);
-             elementAdd=enQueue(cqt,newPacket);
-             if (elementAdd==0){
-                 printf("\n  Mmsg value : %s loc= %d, qsize%d", msg,cqt->tail ,cqt->qelements);
-            }
-      j++;
-    //  usleep (1);
-                  
+      //printf("\n entred msg value : %s len= %d", msg, column1);
+
       }
-      else {
-      usleep (500);
-     // printf("\n\n\n FULLLLLLLLLLLLLLLLLLLLLLLLLLLLLL TH2..TH2..TH2..TH2..TH2.TH2..TH2..TH2..Th2 \n\n");
-      }
-     }
-      printf("\n\n\n FULLLLLLLLLLLLLLLLLLLLLLLLLLLLLL TH2..TH2..TH2..TH2..TH2.TH2..TH2..TH2..Th2 \n\n");
-      pthread_exit(NULL);
-      }
+}
 
 
 char *  readQueue(struct queue *cq, struct Packet *pkt) {
@@ -161,7 +115,7 @@ char *  readQueue(struct queue *cq, struct Packet *pkt) {
    //  struct Packet *pkt;
    int x=deQueue(cq,pkt);
    //printf("\nreadQueue!!!\n");
-   if(x == 1){
+   if(x == -1){
      // printf("\nreadQueue!!!\n");
       printf("\nQueue is Empty!!!\n");
       strncpy(msg,"E000000000",MSGIDLENGTH); 
@@ -172,7 +126,7 @@ char *  readQueue(struct queue *cq, struct Packet *pkt) {
       strncpy(msg,pkt->data,MSGIDLENGTH);
       //printf("\n Read msg value : %s", msg); 
       int column1 = sizeof(msg);
-      //printf("\n readQueue head: %d tail= %d", cq->head, cq->tail); 
+      //printf("\n Read msg value : %s len= %d", msg, column1); 
       return msg;
    }
 }
@@ -190,11 +144,11 @@ int main(void) {
    char paddings[paddingSize];
    clock_t begin = clock();
    struct timeval starts, ends;
-   int totalMsgSent =0;
 
    char * msgId;
 
    struct queue * cq = initcq(PACKETS);
+   populateQueue(cq,PACKETS);
 
 
    for (j=0;j<paddingSize;j++){
@@ -203,19 +157,6 @@ int main(void) {
    }
     
 
-  // populateQueue(cq,PACKETS);
-  // populateQueue((void *)cq); 
-  pthread_mutex_init(&mutex, NULL);
-  
-  pthread_t enq_thread;
-
-  if(pthread_create(&enq_thread, NULL, populateQueue, cq)) {
-
-  fprintf(stderr, "Error creating thread\n");
-  return 1;
-
-  }
-  
    queueFront =0;  // first item
    for (j=0;j<PACKETS;j++){
     }
@@ -245,24 +186,25 @@ int main(void) {
       return;
    }
   //  while(x<PACKETS)
-  // while( (!isemptyqueue(cq)) &&  (totalMsgSent<MAXIMUM) )
-   while( (!isemptyqueue(cq)) )
+   while(!isemptyqueue(cq))
    {
    //msgSent = (char*)malloc(strlen(msgId)+sizeof(paddings)+1);//+1 for the zero-terminator
   
    //printf("TEST1 rear=  %d front= %d\n", cq->tail,cq->head );
 
    msgId = readQueue(cq,pkt);
+   //printf ("\nqueue 2   idl=%d,sentl=%d,padl=%d,pads=%d,msg=%s, pad=%s\n", strlen(msgId) ,strlen(msgSent),strlen(paddings),sizeof(paddings), msgSent, paddings);
+   // in real code you would check for errors in malloc here
+   //strncpy(msgSent,msgId,strlen(msgId));
 
+   //strcat(msgSent, paddings);
    msgSent= concat(msgId,paddings);
    if (sendto(s, msgSent, sizeof(msgSent) , 0 , (struct sockaddr *) &si_other, slen)==-1) {
          die("sendto()");
       }
     //free(msgSent);
-    totalMsgSent ++;
-   printf("\nTEST:queue msgId= %s , %d ,%d , sizeof array = %d, qelements= %d , totalMsgSent= %d",msgId,strlen(msgSent),strlen(paddings), sizeof(*cq),cq->qelements,totalMsgSent); 
-   printf("\nTEST1 rear=  %d front= %d\n", cq->tail,cq->head );
-    free(msgSent);
+   printf("\nTEST4:queue msgId= %s , %d ,%d , value: ",msgId,strlen(msgSent),strlen(paddings)); 
+    //free(msgSent);
    }
 
    clock_t end = clock();
@@ -271,12 +213,9 @@ int main(void) {
    gettimeofday(&ends, NULL);
    double delta = ((ends.tv_sec  - starts.tv_sec) * 1000000u +
    ends.tv_usec - starts.tv_usec) / 1.e6;
-   printf("\nTime spent : %f to senn %d\n",delta, totalMsgSent);
+   printf("\nTime spent : %f\n",delta);
 
    printf ("\nCPU time spent: %1f   at  %d clocks per second \n",time_spent,CLOCKS_PER_SEC); 
    close(s);
-   printf("TEST1 rear=  %d front= %d\n", cq->tail,cq->head );
-   //printf("\nTEST2:queue msgId= %s , %d ,%d , sizeof array = %d, qelements= %d , totalMsgSent= %d",msgId,strlen(msgSent),strlen(paddings), sizeof(*cq),cq->qelements,totalMsgSent); 
-//   pthread_join(enq_thread, NULL);
    return 0;
 }
