@@ -12,13 +12,13 @@
  
 //#define SERVER "127.0.0.1"
 #define SERVER "192.168.0.20"
-#define BUFLEN 1500    //Max length of buffer
+#define BUFLEN 1400    //Max length of buffer
 #define PORT 8888   //The port on which to send data
 #define MAXIMUM 100000   //The port on which to send data
 
- 
 #define PACKETS 1000  //The port on which to send data
-#define MSGIDLENGTH 10
+#define MSGIDLENGTH 10 
+
 pthread_mutex_t mutex; 
 struct Packet {
   char data[MSGIDLENGTH];
@@ -28,7 +28,11 @@ struct queue {
    int qsize,qelements;
    int head,tail;
    struct Packet *qdata;
+   unsigned long msgSentCounter;
+   unsigned long msgSentLastRound;
+   int qspeed; 
 };
+
 
 struct queue* initcq(int size) {
    struct queue *cq=malloc(sizeof(struct queue));
@@ -37,8 +41,13 @@ struct queue* initcq(int size) {
    cq->qelements=0;
    cq->head=-1;
    cq->tail=-1;
+   cq->msgSentCounter=0;
+   cq->msgSentLastRound=0;
+   cq->qspeed=0;
+   
    cq->qdata=malloc(cq->qsize*sizeof(struct Packet));
    if(!cq->qdata)return NULL;
+   printf("init DONE\n");
    return cq;
 }
 
@@ -112,8 +121,9 @@ int deQueue(struct queue *cq, struct Packet *pkt) {
 }
 
 
-void *  populateQueue(void *cq) {
+void *populateQueue(void *cq) {
 //void populateQueue(struct queue *cq,int p) {
+  // printf("TH2\n");
    int j;
    int p = PACKETS;
    int elementAdd= 1;
@@ -124,35 +134,71 @@ void *  populateQueue(void *cq) {
       struct Packet newPacket;
       strncpy(newPacket.data,msg,MSGIDLENGTH+1);
       elementAdd=enQueue(cqt,newPacket);
-      if (elementAdd){
-         printf("\n  Mmsg value : %s loc= %d, qsize%d", msg,cqt->tail ,cqt->qelements);
+      if (!elementAdd){
+//         printf("\n  Mmsg value : %s loc= %d, qsize%d", msg,cqt->tail ,cqt->qelements);
       }
    }
       int column1 = sizeof(msg);
       
      // sleep (1);
-      while (1){
+      while (cqt->msgSentCounter < MAXIMUM){
       if (!isfullqueue(cqt)){
       struct Packet newPacket;
       sprintf(msg, "%010d", j);
       
              strncpy(newPacket.data,msg,MSGIDLENGTH+1);
              elementAdd=enQueue(cqt,newPacket);
-             if (elementAdd==0){
-                 printf("\n  Mmsg value : %s loc= %d, qsize%d", msg,cqt->tail ,cqt->qelements);
-            }
+//             if (elementAdd==0){
+//                 printf("\n  Mmsg value : %s loc= %d, qsize%d", msg,cqt->tail ,cqt->qelements);
+//            }
       j++;
     //  usleep (1);
                   
       }
       else {
-      usleep (500);
-     // printf("\n\n\n FULLLLLLLLLLLLLLLLLLLLLLLLLLLLLL TH2..TH2..TH2..TH2..TH2.TH2..TH2..TH2..Th2 \n\n");
+    //  usleep (10);
+    //  printf("\n\n\n FULLLLLLLLLLLLLLLLLLLLLLLLLLLLLL TH2..TH2..TH2..TH2..TH2.TH2..TH2..TH2..Th2 \n\n");
       }
      }
-      printf("\n\n\n FULLLLLLLLLLLLLLLLLLLLLLLLLLLLLL TH2..TH2..TH2..TH2..TH2.TH2..TH2..TH2..Th2 \n\n");
+      //printf("\n\n\n FULLLLLLLLLLLLLLLLLLLLLLLLLLLLLL TH2..TH2..TH2..TH2..TH2.TH2..TH2..TH2..Th2 \n\n");
       pthread_exit(NULL);
-      }
+}
+
+void *  calculateBandWidth(void *cq) {
+  time_t rawtime;
+  struct tm * timeinfo;
+
+  time ( &rawtime );
+  timeinfo = localtime ( &rawtime );
+  printf ( "Current local time and date: %s", asctime (timeinfo) );
+
+   int j;
+   int p = PACKETS;
+   int elementAdd= 1;
+   char msg[MSGIDLENGTH];
+   struct queue *cqt= (struct queue *) cq;
+   unsigned currentCounter =0;
+   unsigned previousCounter =0;
+   while ( cqt->msgSentCounter < MAXIMUM ){
+  //time_t rawtime;
+//  struct tm * timeinfo;
+  time ( &rawtime );
+  timeinfo = localtime ( &rawtime );
+   usleep (100000);
+ // printf ( "Current local time and date: %s", asctime (timeinfo) );
+
+   pthread_mutex_lock(&mutex); 
+  // printf("Speed = %d \n", cqt->qspeed);
+   //printf("Old Speed = %d \n", cqt->qspeed);
+   previousCounter = cqt->msgSentLastRound;
+   currentCounter = cqt->msgSentCounter;
+   cqt->msgSentLastRound = currentCounter;
+   pthread_mutex_unlock(&mutex); 
+   cqt->qspeed= (int ) (currentCounter - previousCounter);
+   printf("Speed = %d, cc= %u, oc=%u\n", cqt->qspeed,currentCounter,previousCounter);
+   }
+pthread_exit(NULL);
+}
 
 
 char *  readQueue(struct queue *cq, struct Packet *pkt) {
@@ -185,16 +231,16 @@ int main(void) {
    int queueFront = -1;
    int queueRear= -1;
    int paddingSize = BUFLEN-MSGIDLENGTH;
-   char message2[PACKETS][MSGIDLENGTH];
+   //char message2[PACKETS][MSGIDLENGTH];
    char * msgSent;
    char paddings[paddingSize];
    clock_t begin = clock();
    struct timeval starts, ends;
    int totalMsgSent =0;
 
-   char * msgId;
+   char * msgId="I000000000";
 
-   struct queue * cq = initcq(PACKETS);
+   struct queue *cq = initcq(PACKETS);
 
 
    for (j=0;j<paddingSize;j++){
@@ -215,8 +261,19 @@ int main(void) {
   return 1;
 
   }
-  
-   queueFront =0;  // first item
+ 
+
+  pthread_t bw_thread;
+
+  if(pthread_create(&bw_thread, NULL, calculateBandWidth, cq)) {
+
+  fprintf(stderr, "Error creating thread\n");
+  return 1;
+
+  }
+
+ 
+//   queueFront =0;  // first item
    for (j=0;j<PACKETS;j++){
     }
     
@@ -238,31 +295,35 @@ int main(void) {
    printf("Sending %d  packets.\n",PACKETS);
    gettimeofday(&starts, NULL);
 
+  // printf("Sending1 %d  packetsi,  padd=%d.\n",PACKETS,strlen(paddings));
+  // printf("Sending1 %d  packetsi, msgid=%d, padd=%d.\n",PACKETS,strlen(msgId),strlen(paddings));
    msgSent = (char*)malloc(strlen(msgId)+strlen(paddings)+1);//+1 for the zero-terminator
+  // printf("Sending2 %d  packets.\n",PACKETS);
    if(msgSent == NULL)
    {
     printf("Memory allocation failed");
       return;
    }
+  // printf("Sending3 %d  packets.\n",PACKETS);
   //  while(x<PACKETS)
-  // while( (!isemptyqueue(cq)) &&  (totalMsgSent<MAXIMUM) )
-   while( (!isemptyqueue(cq)) )
+    while( (!isemptyqueue(cq)) &&  (cq->msgSentCounter < MAXIMUM) )
+//   while( !isemptyqueue(cq) )
    {
-   //msgSent = (char*)malloc(strlen(msgId)+sizeof(paddings)+1);//+1 for the zero-terminator
+//   msgSent = (char*)malloc(strlen(msgId)+sizeof(paddings)+1);//+1 for the zero-terminator
   
    //printf("TEST1 rear=  %d front= %d\n", cq->tail,cq->head );
 
    msgId = readQueue(cq,pkt);
 
    msgSent= concat(msgId,paddings);
-   if (sendto(s, msgSent, sizeof(msgSent) , 0 , (struct sockaddr *) &si_other, slen)==-1) {
+   if (sendto(s, msgSent, strlen(msgSent) , 0 , (struct sockaddr *) &si_other, slen)==-1) {
          die("sendto()");
       }
-    //free(msgSent);
-    totalMsgSent ++;
-   printf("\nTEST:queue msgId= %s , %d ,%d , sizeof array = %d, qelements= %d , totalMsgSent= %d",msgId,strlen(msgSent),strlen(paddings), sizeof(*cq),cq->qelements,totalMsgSent); 
-   printf("\nTEST1 rear=  %d front= %d\n", cq->tail,cq->head );
-    free(msgSent);
+    (cq->msgSentCounter)++;
+  // printf("\nTEST:queue msgId= %s , %d ,%d , sizeof array = %d, qelements= %d , totalMsgSent= %d",msgId,strlen(msgSent),strlen(paddings), sizeof(*cq),cq->qelements,cq->msgSentCounter); 
+  // printf("\nTEST1 rear=  %d front= %d\n", cq->tail,cq->head );
+//   printf("\nTEST2:queue msgId= %s  ,msgSent_len =%d \n msg=  %s",msgId,strlen(msgSent), msgSent); 
+   free(msgSent);
    }
 
    clock_t end = clock();
@@ -271,12 +332,24 @@ int main(void) {
    gettimeofday(&ends, NULL);
    double delta = ((ends.tv_sec  - starts.tv_sec) * 1000000u +
    ends.tv_usec - starts.tv_usec) / 1.e6;
-   printf("\nTime spent : %f to senn %d\n",delta, totalMsgSent);
+   printf("\nTime spent : %f to senn %d\n",delta, cq->msgSentCounter);
 
    printf ("\nCPU time spent: %1f   at  %d clocks per second \n",time_spent,CLOCKS_PER_SEC); 
    close(s);
-   printf("TEST1 rear=  %d front= %d\n", cq->tail,cq->head );
-   //printf("\nTEST2:queue msgId= %s , %d ,%d , sizeof array = %d, qelements= %d , totalMsgSent= %d",msgId,strlen(msgSent),strlen(paddings), sizeof(*cq),cq->qelements,totalMsgSent); 
-//   pthread_join(enq_thread, NULL);
+   pthread_join(enq_thread, NULL);
+   printf ("\nafter join 1 ");
+   pthread_join(bw_thread, NULL);
+   printf ("\nafter join 2 ");
+   //free (cq);
+   memset(cq, 0, sizeof(struct queue));
+   memset(cq, 0, sizeof(struct Packet));
+   //free (paddings);
+   sleep (1);
+printf ("\nAfter Sleep");
+//   printf("TEST1 rear=  %d front= %d\n", cq->tail,cq->head );
+   //printf("\nTEST2:queue msgId= %s , %d ,%d ,imsid_len = %d , sizeof array = %d,  qelements= %d",msgId,strlen(msgSent),strlen(paddings),strlen(msgId), sizeof(*cq),cq->qelements); 
+//   printf("\nTEST2:queue msgId= %s  ,imsid_len = %d",msgId,sizeof(msgId));
+   //pthread_join(enq_thread, NULL);
+   sleep(1);
    return 0;
 }
